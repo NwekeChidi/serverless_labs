@@ -1,0 +1,55 @@
+service: handling-sf-errors-catch
+frameworkVersion: "3"
+
+plugins:
+  - serverless-step-functions
+provider:
+  name: aws
+  region: us-west-2
+
+functions:
+  hello-error:
+    handler: hello-error.handler
+
+resources:
+  Resources:
+    DLQ:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: our-dlq
+
+stepFunctions:
+  stateMachines:
+    error-SM:
+      name: error-catch-stateMachine
+      definition:
+        Comment: A description of my state machine
+        StartAt: Hello Error
+        States:
+          Hello Error:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [hello-error, Arn]
+            OutputPath: "$.Payload"
+            Parameters:
+              Payload.$: "$"
+            Retry:
+              - ErrorEquals:
+                - Lambda.AWSLambdaException
+                IntervalSeconds: 2
+                MaxAttempts: 3
+                BackoffRate: 2
+            Catch:
+              - ErrorEquals:
+                - Lambda.ServiceException
+                Next: SendToDLQ
+                ResultPath: null
+            End: true
+          SendToDLQ:
+            Type: Task
+            Resource: "arn:aws:states:::sqs:sendMessage"
+            Parameters:
+              MessageBody.$: "$"
+              QueueUrl:
+                Fn::GetAtt: [DLQ, QueueUrl]
+            End: true
