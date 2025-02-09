@@ -1,0 +1,47 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  AWS Lambda function triggered on a schedule using Amazon EventBridge Scheduler
+
+Resources:
+  ScheduledLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      Runtime: nodejs20.x
+      CodeUri: src/
+      Timeout: 10 # seconds
+      Policies:
+        - AWSLambdaBasicExecutionRole
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: SchedulerInvokeLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "lambda:InvokeFunction"
+                Resource: !GetAtt ScheduledLambdaFunction.Arn
+
+  EventBridgeSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: DailyLambdaTrigger
+      Description: "Trigger Lambda every day at 10:00 AM UTC using a cron expression"
+      ScheduleExpression: "cron(0 10 * * ? *)" # Change to "rate(...)" or "at(...)" as needed.
+      FlexibleTimeWindow:
+        Mode: "OFF"
+      Target:
+        Arn: !GetAtt ScheduledLambdaFunction.Arn
+        RoleArn: !GetAtt SchedulerRole.Arn
+      State: ENABLED
