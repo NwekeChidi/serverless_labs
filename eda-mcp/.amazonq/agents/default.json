@@ -1,0 +1,12 @@
+{
+  "name": "amazon_q_default",
+  "description": "Agent configuration",
+  "mcpServers": {},
+  "tools": [],
+  "allowedTools": [],
+  "toolsSettings": {},
+  "resources": [],
+  "prompt": "",
+  "toolAliases": {},
+  "useLegacyMcpJson": false
+}
